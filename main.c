@@ -33,6 +33,7 @@ Node origin;
 Node* current;
 Solution* solution;
 bool backtracking = false;
+int backtracking_to_complete = 0;
 Screen* last = NULL;
 /*}}}*/
 
@@ -41,12 +42,14 @@ Screen* last = NULL;
 bool tryMove(int x_new, int y_new, int direction) {
 	if(x_new < 0 || y_new < 0) return false;
 	if(x_new > x_max || y_new > y_max) return false;
-	if(!monitors[x_new][y_new] || visited[x_new][y_new]) return false;
+	if(!monitors[x_new][y_new]) return false;
 	for(int i = 0; i < current->screen->connections_length; i++) {
 		if(current->direction == direction && current->screen->connections[i].screen == last) {
 			last = NULL;
 			continue;
 		}
+		// down here so that ^ can happen when backtracking_to_complete
+		if(visited[x_new][y_new]) continue;
 		if(!(current->screen->connections[i].direction & direction)) continue;
 		// if backtracking, disallow any connections until we've passed the one we just came from
 		if(last == NULL) {
@@ -63,13 +66,20 @@ bool tryMove(int x_new, int y_new, int direction) {
 		/*}}}*/
 
 			backtracking = false;
-			current->next = malloc(sizeof(Node));
-			current->next->prev = current;
-			current->next->screen = current->screen->connections[i].screen;
-			current = current->next;
+			if(backtracking_to_complete == 0) {
+				current->next = malloc(sizeof(Node));
+				current->next->prev = current;
+				current->next->screen = current->screen->connections[i].screen;
+				current = current->next;
+				current->dx = 0; current->dy = 0;
+				current->prev->direction = direction;
+			}
+			else {
+				backtracking_to_complete = 0;
+				current->screen = current->screen->connections[i].screen;
+			}
 			current->next = NULL;
-			current->dx = x_new-x; current->dy = y_new-y;
-			current->prev->direction = direction;
+			current->dx += x_new-x; current->dy += y_new-y;
 			x = x_new; y = y_new;
 			visited[x][y] = true;
 			return true;
@@ -147,6 +157,9 @@ int main(int argc, char* argv[]) {
 							solution->solution = malloc(sizeof(Screen*));
 							solution->solution[0] = current->screen;
 						}
+						// this isn't necessary because it happens in tryMove but _to_complete is
+						//backtracking = false;
+						backtracking_to_complete = 0;
 						break;
 					}
 
@@ -180,17 +193,31 @@ int main(int argc, char* argv[]) {
 	/*}}}*/
 
 					backtracking = true;
+					backtracking_to_complete = 0;
 				}
 				// nothing else down this branch, go to head to try to fill in the rest of the monitors
 				else if(!backtracking) {
-					current->next = malloc(sizeof(Node));
-					current->next->prev = current;
-					current->next->screen = origin.screen;
-					current = current->next;
-					current->next = NULL;
-					current->dx = x_origin-x; current->dy = y_origin-y;
-					current->prev->direction = 0;
-					x = x_origin; y = y_origin;
+					last = current->screen;
+					if(backtracking_to_complete == 0) {
+						backtracking_to_complete = 1;
+						current->next = malloc(sizeof(Node));
+						current->next->prev = current;
+						current->next->screen = current->prev->screen;
+						current = current->next;
+						current->next = NULL;
+						current->dx = -current->prev->dx; current->dy = -current->prev->dy;
+						current->prev->direction = 0;
+						current->direction = current->prev->prev->direction;
+						x -= current->prev->dx; y -= current->prev->dy;
+						continue;
+					}
+					backtracking_to_complete++;
+					Node* current_t = current->prev;
+					for(int i = 0; i < backtracking_to_complete; i++) current_t = current_t->prev;
+					current->screen = current_t->screen;
+					current->dx -= current_t->next->dx; current->dy -= current_t->next->dy;
+					current->direction = current_t->direction;
+					x -= current_t->next->dx; y -= current_t->next->dy;
 					continue;
 				}
 				// backtrack one
