@@ -13,6 +13,7 @@ typedef struct Node {
 	struct Node* prev;
 	int dx;
 	int dy;
+	int direction;
 	Screen* screen;
 } Node;
 
@@ -42,7 +43,7 @@ bool tryMove(int x_new, int y_new, int direction) {
 	if(x_new > x_max || y_new > y_max) return false;
 	if(!monitors[x_new][y_new] || visited[x_new][y_new]) return false;
 	for(int i = 0; i < current->screen->connections_length; i++) {
-		if(current->screen->connections[i].screen == last) {
+		if(current->direction == direction && current->screen->connections[i].screen == last) {
 			last = NULL;
 			continue;
 		}
@@ -67,8 +68,8 @@ bool tryMove(int x_new, int y_new, int direction) {
 			current->next->screen = current->screen->connections[i].screen;
 			current = current->next;
 			current->next = NULL;
-			current->dx = x_new-x;
-			current->dy = y_new-y;
+			current->dx = x_new-x; current->dy = y_new-y;
+			current->prev->direction = direction;
 			x = x_new; y = y_new;
 			visited[x][y] = true;
 			return true;
@@ -188,6 +189,7 @@ int main(int argc, char* argv[]) {
 					current = current->next;
 					current->next = NULL;
 					current->dx = x_origin-x; current->dy = y_origin-y;
+					current->prev->direction = 0;
 					x = x_origin; y = y_origin;
 					continue;
 				}

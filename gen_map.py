@@ -230,7 +230,7 @@ for room in rooms.values():
 
 		#{{{ same thing for up up/down down
 					if abs((rooms_con[i].y+connection[2+2*i])-(rooms_con[1-i].y+connection[4-2*i])) < (768/20)/4:
-						if screens_con[i].x_map-screens_con[1-i].x_map > 0:
+						if screens_con[i].x_map-screens_con[1-i].x_map < 0:
 							directions |= 0b0001
 						else:
 							directions |= 0b0100
