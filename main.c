@@ -273,26 +273,28 @@ int main(int argc, char* argv[]) {
 			MagickSetImageBackgroundColor(screen_wand, letterbox_wand);
 			int w = 1024;
 			int h = 768;
+			int x_scrot = screen->x_scrot;
+			int y_scrot = screen->y_scrot;
 
 	/*{{{ if the monitor is widescreen and not using a multiscreen room, widescreen*/
-			int w_letterboxed = MagickGetImageWidth(screen_wand)-w;
+			int w_letterboxed = 1366-w;
 			if(w_letterboxed > w/2) w_letterboxed = 1366-1024;
 			if(((double)monitors_data[i][j][2])/monitors_data[i][j][3] > ((double)w+w_letterboxed/2)/h) {
 				// the cropping and extending is to make rooms that are letterboxed on one side not centered (end of long rooms)
 				if(i-1 < 0 || !monitors[i-1][j] || screen->screenshot->blob != solution->solution[(i-1)*(x_max+1)+j]->screenshot->blob) {
 					w += w_letterboxed/2;
-					screen->x_scrot -= w_letterboxed/2;
+					x_scrot -= w_letterboxed/2;
 				}
 				if(i+1 > x_max || !monitors[i+1][j] || screen->screenshot->blob != solution->solution[(i+1)*(x_max+1)+j]->screenshot->blob) {
 					w += w_letterboxed/2;
-					MagickCropImage(screen_wand, w, h, screen->x_scrot, screen->y_scrot);
+					MagickCropImage(screen_wand, w, h, x_scrot, y_scrot);
 					if(w != 1366) {
 						MagickExtentImage(screen_wand, 1366, h, -w_letterboxed/2, 0);
 						w = 1366;
 					}
 				}
 				else {
-					MagickCropImage(screen_wand, w, h, screen->x_scrot, screen->y_scrot);
+					MagickCropImage(screen_wand, w, h, x_scrot, y_scrot);
 					if(w == 1024+w_letterboxed/2) {
 						MagickExtentImage(screen_wand, 1366, h, 0, 0);
 						w = 1366;
@@ -301,7 +303,7 @@ int main(int argc, char* argv[]) {
 			}
 	/*}}}*/
 
-			else MagickCropImage(screen_wand, w, h, screen->x_scrot, screen->y_scrot);
+			else MagickCropImage(screen_wand, w, h, x_scrot, y_scrot);
 			// make canvas match monitor ratio so resize goes well
 			if(((double)monitors_data[i][j][2])/w > ((double)monitors_data[i][j][3])/h) {
 				int w_new = (h*monitors_data[i][j][2])/monitors_data[i][j][3];
