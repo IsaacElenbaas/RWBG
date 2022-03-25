@@ -72,6 +72,7 @@ bool tryMove(int x_new, int y_new, int direction) {
 				current->next->screen = current->screen->connections[i].screen;
 				current = current->next;
 				current->dx = 0; current->dy = 0;
+				current->direction = 0;
 				current->prev->direction = direction;
 			}
 			else {
