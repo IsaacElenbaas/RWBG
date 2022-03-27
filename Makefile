@@ -14,8 +14,8 @@ endif
 all: main
 
 main: main.c $(OBJECTS)
-	$(info $(CC) $(CFLAGS) $(MAGICKFLAGS) -o $@ $@.c SCREENSHOTS $(LIB_PATH) $LIBS)
-	@$(CC) $(CFLAGS) $(MAGICKFLAGS) -o $@ $@.c $(OBJECTS) $(LIB_PATH) $(LIBS)
+	$(info $(CC) $(CFLAGS) $(MAGICKFLAGS) -lm -o $@ $@.c SCREENSHOTS $(LIB_PATH) $LIBS)
+	@$(CC) $(CFLAGS) $(MAGICKFLAGS) -lm -o $@ $@.c $(OBJECTS) $(LIB_PATH) $(LIBS)
 
 $(OBJECTS): %.o : %.c
 	$(CC) $(CFLAGS) -c -o $@ $< $(LIB_PATH) $(LIBS)
