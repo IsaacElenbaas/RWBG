@@ -1,13 +1,15 @@
 #include <math.h>
-#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 #include "MagickWand/MagickWand.h"
 #include "map.h"
 #include "main.h"
+#ifdef __linux__
+#	include <signal.h>
+#	include <unistd.h>
+#endif
 
 /*{{{ structs and variables*/
 struct Node;
@@ -102,6 +104,7 @@ bool tryMoveDown() { return tryMove(x, y+1, 8); }
 int main(int argc, char* argv[]) {
 	// TODO: check argc and write help
 
+#ifdef __linux__
 	int output_PID = 0;
 	if(strcmp(argv[1], "--daemon") == 0) {
 		signal(SIGCHLD, SIG_IGN);
@@ -129,6 +132,7 @@ int main(int argc, char* argv[]) {
 			free(line);
 		}
 	}
+#endif
 
 /*{{{ load monitors*/
 	sscanf(argv[1], "%dx%d", &x_max, &y_max);
@@ -267,8 +271,13 @@ int main(int argc, char* argv[]) {
 		if(solution != NULL) break;
 	}
 	if(solution == NULL) {
-		if(output_PID == 0) printf("There aren't any map sections that match this monitor configuration.\n");
+#ifdef __linux__
+		if(output_PID == 0)
+#endif
+			printf("There aren't any map sections that match this monitor configuration.\n");
+#ifdef __linux__
 		else kill(output_PID, SIGINT);
+#endif
 		return 0;
 	}
 	int solution_num = 1;
@@ -353,7 +362,11 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	MagickSetImageCompressionQuality(background_wand, 100);
-	if(output_PID == 0) MagickWriteImage(background_wand, "background.png");
+#ifdef __linux__
+	if(output_PID == 0)
+#endif
+		MagickWriteImage(background_wand, "background.png");
+#ifdef __linux__
 	else {
 		MagickSetImageFormat(background_wand, "PNG");
 		size_t background_blob_length;
@@ -368,6 +381,7 @@ int main(int argc, char* argv[]) {
 		sleep(1);
 		kill(output_PID, SIGINT);
 	}
+#endif
 	DestroyMagickWand(background_wand);
 	DestroyPixelWand(letterbox_wand);
 	MagickWandTerminus();
