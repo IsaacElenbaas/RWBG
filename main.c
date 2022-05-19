@@ -220,7 +220,7 @@ int main(int argc, char* argv[]) {
 						solution_t->solution = malloc((x_max+1)*(y_max+1)*sizeof(Screen*));
 						int x_t = x; int y_t = y;
 						for(Node* current_t = current; current_t != NULL; current_t = current_t->prev) {
-							solution_t->solution[x_t*(x_max+1)+y_t] = current_t->screen;
+							solution_t->solution[x_t*(y_max+1)+y_t] = current_t->screen;
 							x_t -= current_t->dx; y_t -= current_t->dy;
 						}
 		/*}}}*/
@@ -309,7 +309,7 @@ int main(int argc, char* argv[]) {
 			}
 	/*}}}*/
 
-			Screen* screen = solution->solution[i*(x_max+1)+j];
+			Screen* screen = solution->solution[i*(y_max+1)+j];
 			MagickWand* screen_wand = NewMagickWand();
 			MagickReadImageBlob(screen_wand, screen->screenshot->blob, screen->screenshot->length);
 			MagickSetImageBackgroundColor(screen_wand, letterbox_wand);
@@ -323,11 +323,11 @@ int main(int argc, char* argv[]) {
 			if(w_letterboxed > w/2) w_letterboxed = 1366-1024;
 			if(((double)monitors_data[i][j][2])/monitors_data[i][j][3] > ((double)w+w_letterboxed/2)/h) {
 				// the cropping and extending is to make rooms that are letterboxed on one side not centered (end of long rooms)
-				if(i-1 < 0 || !monitors[i-1][j] || screen->screenshot->blob != solution->solution[(i-1)*(x_max+1)+j]->screenshot->blob) {
+				if(i-1 < 0 || !monitors[i-1][j] || screen->screenshot->blob != solution->solution[(i-1)*(y_max+1)+j]->screenshot->blob) {
 					w += w_letterboxed/2;
 					x_scrot -= w_letterboxed/2;
 				}
-				if(i+1 > x_max || !monitors[i+1][j] || screen->screenshot->blob != solution->solution[(i+1)*(x_max+1)+j]->screenshot->blob) {
+				if(i+1 > x_max || !monitors[i+1][j] || screen->screenshot->blob != solution->solution[(i+1)*(y_max+1)+j]->screenshot->blob) {
 					w += w_letterboxed/2;
 					MagickCropImage(screen_wand, w, h, x_scrot, y_scrot);
 					if(w != 1366) {
