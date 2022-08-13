@@ -313,14 +313,14 @@ int main(int argc, char* argv[]) {
 			MagickWand* screen_wand = NewMagickWand();
 			MagickReadImageBlob(screen_wand, screen->screenshot->blob, screen->screenshot->length);
 			MagickSetImageBackgroundColor(screen_wand, letterbox_wand);
-			int w = 1024;
-			int h = 768;
+			int w = w_scrot;
+			int h = h_scrot;
 			int x_scrot = screen->x_scrot;
 			int y_scrot = screen->y_scrot;
 
 	/*{{{ if the monitor is widescreen and not using a multiscreen room, widescreen*/
-			int w_letterboxed = 1366-w;
-			if(w_letterboxed > w/2) w_letterboxed = 1366-1024;
+			int w_letterboxed = w_scrot_extended-w;
+			if(w_letterboxed > w/2) w_letterboxed = w_scrot_extended-w_scrot;
 			if(((double)monitors_data[i][j][2])/monitors_data[i][j][3] > ((double)w+w_letterboxed/2)/h) {
 				// the cropping and extending is to make rooms that are letterboxed on one side not centered (end of long rooms)
 				if(i-1 < 0 || !monitors[i-1][j] || screen->screenshot->blob != solution->solution[(i-1)*(y_max+1)+j]->screenshot->blob) {
@@ -330,16 +330,16 @@ int main(int argc, char* argv[]) {
 				if(i+1 > x_max || !monitors[i+1][j] || screen->screenshot->blob != solution->solution[(i+1)*(y_max+1)+j]->screenshot->blob) {
 					w += w_letterboxed/2;
 					MagickCropImage(screen_wand, w, h, x_scrot, y_scrot);
-					if(w != 1366) {
-						MagickExtentImage(screen_wand, 1366, h, -w_letterboxed/2, 0);
-						w = 1366;
+					if(w != w_scrot_extended) {
+						MagickExtentImage(screen_wand, w_scrot_extended, h, -w_letterboxed/2, 0);
+						w = w_scrot_extended;
 					}
 				}
 				else {
 					MagickCropImage(screen_wand, w, h, x_scrot, y_scrot);
-					if(w == 1024+w_letterboxed/2) {
-						MagickExtentImage(screen_wand, 1366, h, 0, 0);
-						w = 1366;
+					if(w == w_scrot+w_letterboxed/2) {
+						MagickExtentImage(screen_wand, w_scrot_extended, h, 0, 0);
+						w = w_scrot_extended;
 					}
 				}
 			}
