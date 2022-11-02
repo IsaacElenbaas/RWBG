@@ -6,7 +6,7 @@ import os
 import re
 import sys
 
-path = ""
+path = "/media/data0/SteamLibrary/steamapps/common/Rain World"
 
 #{{{ class Room(name, x, y, w, h, cameras)
 class Room:
@@ -129,18 +129,18 @@ for region in regions:
 			x_dev = float(x_dev)/3; y_dev = float(y_dev)/3
 			try:
 				if title.split("_")[0] != "GATE":
-					region_map = open(path + "Regions/{}/Rooms/{}.txt".format(region, title), "r")
+					room_map = open(path + "Regions/{}/Rooms/{}.txt".format(region, title), "r")
 				else:
-					region_map = open(path + "Gates/{}.txt".format(title), "r")
-				region_map.readline() # name
-				w, h = region_map.readline().split("|")[0].split("*") # rest of this line is water info
+					room_map = open(path + "Gates/{}.txt".format(title), "r")
+				room_map.readline() # name
+				w, h = room_map.readline().split("|")[0].split("*") # rest of this line is water info
 				w = int(w); h = int(h)
 				# map coordinates are for center
 				x_map = x_map-w/2
 				y_map = y_map-h/2
-				region_map.readline() # light angle
-				cameras = [i.split(",") for i in region_map.readline().split("|")]
-				region_map.close()
+				room_map.readline() # light angle
+				cameras = [i.split(",") for i in room_map.readline().split("|")]
+				room_map.close()
 			except Exception as e:
 				print(e, file=sys.stderr)
 				print("Skipping room in map_{}.txt: {}".format(region, title), file=sys.stderr)
