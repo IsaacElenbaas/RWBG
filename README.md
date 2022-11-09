@@ -1,5 +1,6 @@
 # Rain World Background Generator
 ### Available as a web app at http://isaacelenbaas.us.to/RWBG.html
+Entering your monitor configuration will redirect you to a link which can be refreshed to generate a new background and/or used in a [script](https://github.com/IsaacElenbaas/dotfiles/blob/master/bin/rollbg) - here is [mine.](http://isaacelenbaas.us.to/RWBG/2x2%200,0%200,0@0,0:1920x1080%201,0@1920,0:1920x1080%200,1@0,1080:1920x1080.png)
 ## About
 RWBG will, given monitor information, generate a background where each monitor is a game screen and each screen is (mostly, I did my best) in the correct game-space relative to those around it. Letterboxing is avoided where not necessary.
 
