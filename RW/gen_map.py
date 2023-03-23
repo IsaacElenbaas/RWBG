@@ -7,6 +7,7 @@ import re
 import sys
 
 path = "/media/data0/SteamLibrary/steamapps/common/Rain World"
+ignore = { "OE_TEMP": True }
 
 #{{{ class Room(name, x, y, w, h, cameras)
 class Room:
@@ -14,7 +15,7 @@ class Room:
 		# contains [name_other, x, y, x_other, y_other, dir, dir_other]
 		# xs and ys are for entrance and in tile units
 		# for dir, 0 is right, 1 is up, 2 is left, 3 is down
-		self.connections = []
+		self.connections = {}
 
 	#{{{ copy properties to self
 		self.name = name
@@ -32,7 +33,7 @@ class Room:
 			# almost all larger rooms are only expanded in one direction and this doesn't fail any good ones at the moment
 			if abs(self.screens[i][0]-self.screens[0][0]) > 3*1024 and \
 			   abs(self.screens[i][1]-self.screens[0][1]) > 3*768:
-				print("Skipping camera in room {}".format(name), file=sys.stderr)
+				print("Skipping camera {} in room {}".format(i, name), file=sys.stderr)
 				self.screens.pop(i)
 			else:
 				self.screens[i][1] = 20*h-800-self.screens[i][1]
@@ -91,6 +92,7 @@ class Screen:
 	def __init__(self, name, x_map, y_map, x_scrot, y_scrot):
 		# contains [name_other, dir bitmap]
 		self.connections = []
+		self.campaigns = {}
 		self.name = name
 		self.x_map = x_map
 		self.y_map = y_map
@@ -98,77 +100,96 @@ class Screen:
 		self.y_scrot = y_scrot
 #}}}
 
-path = re.sub('/*$', "/World/", path, 1)
+path = re.sub('/*$', "/RainWorld_Data/StreamingAssets/", path)
+slugcats = ["", "gourmand", "artificer", "rivulet", "spear", "saint"]
 rooms = {}
 screens = collections.OrderedDict()
 
 #{{{ load everything
 try:
-	regions = open(path + "Regions/regions.txt")
+	main = open(path + "world/regions.txt")
+	msc = open(path + "mods/moreslugcats/modify/world/regions.txt")
+	regions = set(main.readlines() + [re.sub('^.*]', "", region) for region in msc.readlines()])
+	main.close()
+	msc.close()
 except IOError as e:
 	print(e, file=sys.stderr)
-	print("You probably supplied an incorrect path", file=sys.stderr)
+	print("You may have supplied an incorrect path", file=sys.stderr)
+	print("Also note that Downpour is required for this script", file=sys.stderr)
 	exit(1)
-for region in regions:
-	region = region.strip()
-	if not re.match('^[A-Z]{2,}$', region):
-		print("Skipping region {}".format(region), file=sys.stderr)
-		continue
-	region_map = open(path + "Regions/{r}/map_{r}.txt".format(r=region), "r")
-	for line in region_map:
-		title, data = line.split(":")
-		data = data.strip()
-		if title.split("_")[0] in ["OffScreenDen"]:
+for slugcat in slugcats:
+	for region in regions:
+		region = region.strip()
+		if not re.match('^[A-Z]{2,}$', region):
+			print("Skipping region {}".format(region), file=sys.stderr)
 			continue
-		if title != "Connection":
+		try:
+			region_map = open(path + "mods/moreslugcats/world/{r}/map_{r}{}{}.txt".format("-" if slugcat != "" else "", slugcat, r=region.lower()), "r")
+		except IOError as e:
+			#print("Skipping region {} as {}".format(region, slugcat), file=sys.stderr)
+			continue
+		for line in region_map:
+			title, data = line.split(":")
+			data = data.strip()
+			if title.split("_")[0] in ["OffScreenDen"]:
+				continue
+			if title != "Connection":
+				if title in ignore:
+					continue
 
 	#{{{ parse room
-			x_map, y_map, x_dev, y_dev, layer, subregion = data.split(",")
-			# convert to tile units
-			x_map = float(x_map)/2; y_map = float(y_map)/2
-			x_dev = float(x_dev)/3; y_dev = float(y_dev)/3
-			try:
-				if title.split("_")[0] != "GATE":
-					room_map = open(path + "Regions/{}/Rooms/{}.txt".format(region, title), "r")
-				else:
-					room_map = open(path + "Gates/{}.txt".format(title), "r")
-				room_map.readline() # name
-				w, h = room_map.readline().split("|")[0].split("*") # rest of this line is water info
-				w = int(w); h = int(h)
-				# map coordinates are for center
-				x_map = x_map-w/2
-				y_map = y_map-h/2
-				room_map.readline() # light angle
-				cameras = [i.split(",") for i in room_map.readline().split("|")]
-				room_map.close()
-			except Exception as e:
-				print(e, file=sys.stderr)
-				print("Skipping room in map_{}.txt: {}".format(region, title), file=sys.stderr)
-				continue
-			rooms[title] = Room(title, x_dev, y_dev, w, h, cameras)
+				x_map, y_map, x_dev, y_dev, layer, subregion, w, h = data.split("><")
+				# convert to tile units
+				x_map = float(x_map)/2; y_map = float(y_map)/2
+				x_dev = float(x_dev)/3; y_dev = float(y_dev)/3
+				try:
+					try:
+						if title.split("_")[0] != "GATE":
+							room_map = open(path + "mods/moreslugcats/world/{}-rooms/{}.txt".format(region.lower(), title.lower()), "r")
+						else:
+							room_map = open(path + "mods/moreslugcats/world/gates/{}.txt".format(title.lower()), "r")
+					except IOError as e:
+						if title.split("_")[0] != "GATE":
+							room_map = open(path + "world/{}-rooms/{}.txt".format(region.lower(), title.lower()), "r")
+						else:
+							room_map = open(path + "world/gates/{}.txt".format(title.lower()), "r")
+					room_map.readline() # name
+					w, h = room_map.readline().split("|")[0].split("*") # rest of this line is water info
+					w = int(w); h = int(h)
+					# map coordinates are for center
+					x_map = x_map-w/2
+					y_map = y_map-h/2
+					room_map.readline() # light angle
+					cameras = [i.split(",") for i in room_map.readline().split("|")]
+					room_map.close()
+				except Exception as e:
+					print(e, file=sys.stderr)
+					print("Skipping room in {}: {}".format(region, title), file=sys.stderr)
+					continue
+				rooms[title] = Room(title, x_dev, y_dev, w, h, cameras)
 	#}}}
 
-		else:
+			else:
 
 	#{{{ parse connection
-			room_a, room_b, x_a, y_a, x_b, y_b, dir_a, dir_b = data.split(",")
-			if room_a.split("_")[0] in ["OffScreenDen", "DISCONNECTED"] or \
-			   room_b.split("_")[0] in ["OffScreenDen", "DISCONNECTED"]:
-				continue
-			try:
-				rooms[room_a].connections.append([room_b, float(x_a), float(y_a), float(x_b), float(y_b), int(dir_a), int(dir_b)])
-			except Exception as e:
-				print(e, file=sys.stderr)
-				print("Skipping connection in {}.txt: {}".format(region, data), file=sys.stderr)
+				room_a, room_b, x_a, y_a, x_b, y_b, dir_a, dir_b = data.split(",")
+				if room_a.split("_")[0] in ["OffScreenDen", "DISCONNECTED"] or \
+					 room_b.split("_")[0] in ["OffScreenDen", "DISCONNECTED"]:
+					continue
+				try:
+					if room_b not in rooms[room_a].connections:
+						rooms[room_a].connections[room_b] = [room_b, float(x_a), float(y_a), float(x_b), float(y_b), int(dir_a), int(dir_b)]
+				except Exception as e:
+					print(e, file=sys.stderr)
+					print("Skipping connection in {}: {}".format(region, data), file=sys.stderr)
 	#}}}
 
-	region_map.close()
-regions.close()
+		region_map.close()
 #}}}
 
 #{{{ create connections with possible directions between screens
 for room in rooms.values():
-	for connection in room.connections:
+	for connection in room.connections.values():
 		rooms_con = [room, rooms[connection[0]]]
 		screens_con = []
 
@@ -272,7 +293,7 @@ print("#include <stdlib.h>\n#include <string.h>", file=map_h)
 print(
 '''
 typedef struct Screenshot {
-	unsigned char* blob;
+	unsigned char* volatile blob;
 	int length;
 } Screenshot;
 '''
@@ -286,39 +307,52 @@ int h_scrot = 768;
 
 	#{{{ create room Screenshots
 for room in rooms:
-	if room.split("_")[0] == "GATE":
-		folder = room.split("_")[1]
-	else:
-		folder = room.split("_")[0]
-	try:
-		print("extern Screenshot s_{};".format(room), file=map_h)
-		print("void init_s_{}();".format(room), file=map_h)
-		print("init_s_{}();".format(room), file=map_c)
+	found = False
+	for slugcat in slugcats:
+		if room.split("_")[0] == "GATE":
+			folder = room.split("_")[1]
+		else:
+			folder = room.split("_")[0]
+		folder = ("white" if slugcat == "" else slugcat) + "/" + folder
+		if not os.path.isfile(path + "Merged Screenshots/" + folder + "/" + room + ".png"):
+			continue
+		found = True
+		for screen in rooms[room].screens:
+			screen.campaigns[slugcat] = True
+		print("extern Screenshot s_{}_{};".format(slugcat, room), file=map_h)
+		print("void init_s_{}_{}();".format(slugcat, room), file=map_h)
+		print("init_s_{}_{}();".format(slugcat, room), file=map_c)
 		if not os.path.isfile(path + "Merged_Screenshots_C/" + folder + "/" + room + ".c"):
 			print("Creating {}".format("Merged_Screenshots_C/" + folder + "/" + room + ".c"), file=sys.stderr)
 			screenshot = open(path + "Merged Screenshots/" + folder + "/" + room + ".png", "rb")
 			os.makedirs(path + "Merged_Screenshots_C/" + folder, exist_ok=True)
 			screenshot_c = open(path + "Merged_Screenshots_C/" + folder + "/" + room + ".c", "w")
 			print("#include \"map.h\"", file=screenshot_c)
-			print("Screenshot s_{};".format(room), file=screenshot_c)
-			print("void init_s_{}() {{".format(room), file=screenshot_c)
-			print("\ts_{}.length = {};".format(room, os.path.getsize(path + "Merged Screenshots/" + folder + "/" + room + ".png")), file=screenshot_c)
-			print("\ts_{r}.blob = malloc(s_{r}.length*sizeof(char));".format(r=room), file=screenshot_c)
-			print("\tunsigned char* s = s_{}.blob;".format(room), file=screenshot_c)
+			print("Screenshot s_{}_{};".format(slugcat, room), file=screenshot_c)
+			print("void init_s_{}_{}() {{".format(slugcat, room), file=screenshot_c)
+			print("\ts_{}_{}.length = {};".format(slugcat, room, os.path.getsize(path + "Merged Screenshots/" + folder + "/" + room + ".png")), file=screenshot_c)
+			print("\ts_{s}_{r}.blob = malloc(s_{s}_{r}.length*sizeof(char));".format(s=slugcat, r=room), file=screenshot_c)
+			print("\tunsigned char* s = s_{}_{}.blob;".format(slugcat, room), file=screenshot_c)
 			i=0
+			close = False
 			while (byte := screenshot.read(1)):
 				if i%1024 == 0:
+					close = True
 					print("\tmemcpy(s+{}*sizeof(char),\"".format(i), end="", file=screenshot_c)
 				print("\\x{:x}".format(int.from_bytes(byte, 'big')), end="", file=screenshot_c)
 				if (i := i+1)%1024 == 0:
+					close = False
 					print("\", 1024*sizeof(char));", file=screenshot_c)
-			print("\", {}*sizeof(char));".format(i%1024), file=screenshot_c)
+			if close:
+				print("\", {}*sizeof(char));".format(i%1024), file=screenshot_c)
 			print("}", file=screenshot_c)
 			screenshot.close()
 			screenshot_c.close()
-	except (FileNotFoundError, IOError) as e:
-		print(e, file=sys.stderr)
+		else:
+			found = True
+	if not found:
 		print("Missing screenshot for {}".format(room), file=sys.stderr)
+		print(path + "Merged Screenshots/?/" + room.split("_")[0] + "/" + room + ".png")
 		exit(1)
 	#}}}
 
@@ -332,26 +366,36 @@ print("Creating Screens and Connections", file=sys.stderr)
 i=-1
 for screen in screens:
 	screens[screen].index = (i := i+1)
-i=0
 for screen in screens:
 	print("", file=map_c)
 
 	#{{{ create Screens
-	print("screens[{}].screenshot = &s_{};".format(i, re.sub('_\d*$', "", screen)), file=map_c)
-	print("screens[{}].x_scrot = {};".format(i, screens[screen].x_scrot), file=map_c)
-	print("screens[{}].y_scrot = {};".format(i, screens[screen].y_scrot), file=map_c)
-	print("screens[{}].connections_length = {};".format(i, len(screens[screen].connections)), file=map_c)
-	print("screens[{s}].connections = malloc(screens[{s}].connections_length*sizeof(Connection));".format(s=i), file=map_c)
+	for slugcat in slugcats:
+		# shush and let me write my bad code
+		i = slugcats.index(slugcat)
+		if i == 0:
+			if slugcat in screens[screen].campaigns:
+				print("screens[{}].screenshot = &s_{}_{};".format(screens[screen].index, slugcat, re.sub('_\d*$', "", screen)), file=map_c)
+			else:
+				print("screens[{}].screenshot = NULL;".format(screens[screen].index), file=map_c)
+		else:
+			if slugcat in screens[screen].campaigns:
+				print("screens[{}].screenshot{} = &s_{}_{};".format(screens[screen].index, i, slugcat, re.sub('_\d*$', "", screen)), file=map_c)
+			else:
+				print("screens[{}].screenshot{} = screens[{}].screenshot;".format(screens[screen].index, i, screens[screen].index), file=map_c)
+	print("screens[{}].x_scrot = {};".format(screens[screen].index, screens[screen].x_scrot), file=map_c)
+	print("screens[{}].y_scrot = {};".format(screens[screen].index, screens[screen].y_scrot), file=map_c)
+	print("screens[{}].connections_length = {};".format(screens[screen].index, len(screens[screen].connections)), file=map_c)
+	print("screens[{s}].connections = malloc(screens[{s}].connections_length*sizeof(Connection));".format(s=screens[screen].index), file=map_c)
 	#}}}
 
 	#{{{ create Connections
 	j=0
 	for connection in screens[screen].connections:
-		print("screens[{}].connections[{}].screen = &screens[{}];".format(i, j, screens[connection[0]].index), file=map_c)
-		print("screens[{}].connections[{}].direction = {};".format(i, j, connection[1]), file=map_c)
+		print("screens[{}].connections[{}].screen = &screens[{}];".format(screens[screen].index, j, screens[connection[0]].index), file=map_c)
+		print("screens[{}].connections[{}].direction = {};".format(screens[screen].index, j, connection[1]), file=map_c)
 		j += 1
 	#}}}
 
-	i += 1
 map_c.close()
 #}}}

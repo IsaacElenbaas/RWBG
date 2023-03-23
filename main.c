@@ -25,6 +25,9 @@ typedef struct Node {
 struct Solution;
 typedef struct Solution {
 	struct Solution* next;
+#ifdef RW
+	int campaign;
+#endif
 	Screen** solution;
 } Solution;
 
@@ -40,6 +43,26 @@ Solution* solution;
 bool backtracking = false;
 int backtracking_to_complete = 0;
 Screen* last = NULL;
+#ifdef RW
+int campaign;
+#endif
+/*}}}*/
+
+/*{{{ Screenshot* getScreenshot(Screen* screen)*/
+Screenshot* getScreenshot(Screen* screen) {
+#ifdef RW
+	switch(campaign) {
+		case 1: return screen->screenshot1;
+		case 2: return screen->screenshot2;
+		case 3: return screen->screenshot3;
+		case 4: return screen->screenshot4;
+		case 5: return screen->screenshot5;
+	}
+	return NULL;
+#else
+	return screen->screenshot;
+#endif
+}
 /*}}}*/
 
 /*{{{ tryMoveDirection*/
@@ -56,6 +79,7 @@ bool tryMove(int x_new, int y_new, int direction) {
 		// down here so that ^ can happen when backtracking_to_complete
 		if(visited[x_new][y_new]) continue;
 		if(!(current->screen->connections[i].direction & direction)) continue;
+		if(getScreenshot(current->screen->connections[i].screen) == NULL) continue;
 		// if backtracking, disallow any connections until we've passed the one we just came from
 		if(last == NULL) {
 
@@ -172,14 +196,30 @@ int main(int argc, char* argv[]) {
 	visited[x_origin][y_origin] = true;
 	srand(time(0));
 	bool tried[screens_length];
+#ifdef RW
+	int campaigns[5] = { 1, 2, 3, 4, 5 };
+	for(int c_i = 0; c_i < 5; c_i++) {
+		int swap = rand()%6;
+		int temp = campaigns[swap];
+		campaigns[swap] = campaigns[c_i];
+		campaigns[c_i] = temp;
+	}
+#endif
 	for(int i = 0; i < screens_length; i++) tried[i] = false;
 	for(int attempt = 0; attempt < screens_length; attempt++) {
+#ifdef RW
+	for(int c_i = 0; c_i < 5; c_i++) {
+	campaign = campaigns[c_i];
+#endif
 		int screen;
 		for(screen = rand()%screens_length; tried[screen]; screen = (screen+1)%screens_length);
 		tried[screen] = true;
 		origin.screen = &screens[screen];
 
 /*{{{ generate solution list starting at screen*/
+#ifdef RW
+		if(getScreenshot(origin.screen) == NULL) continue;
+#endif
 		while(true) {
 			if(!(tryMoveRight() || tryMoveUp() || tryMoveLeft() || tryMoveDown())) {
 				if(current->screen == origin.screen) {
@@ -190,6 +230,9 @@ int main(int argc, char* argv[]) {
 						if(x_max == 0 && y_max == 0) {
 							solution = malloc(sizeof(Solution));
 							solution->next = NULL;
+#ifdef RW
+							solution->campaign = campaign;
+#endif
 							solution->solution = malloc(sizeof(Screen*));
 							solution->solution[0] = current->screen;
 						}
@@ -211,6 +254,9 @@ int main(int argc, char* argv[]) {
 		/*{{{ store solution*/
 						Solution* solution_t = malloc(sizeof(Solution));
 						solution_t->next = NULL;
+#ifdef RW
+						solution_t->campaign = campaign;
+#endif
 						if(solution == NULL) solution = solution_t;
 						else {
 							Solution* i;
@@ -268,7 +314,11 @@ int main(int argc, char* argv[]) {
 		}
 /*}}}*/
 
-		if(solution != NULL) break;
+#ifdef RW
+	if(solution != NULL) break;
+	}
+#endif
+	if(solution != NULL) break;
 	}
 	if(solution == NULL) {
 #ifdef __linux__
@@ -288,6 +338,9 @@ int main(int argc, char* argv[]) {
 	for(int i = 0; i < solution_num; i++) {
 		solution = solution->next;
 	}
+#ifdef RW
+	campaign = solution->campaign;
+#endif
 
 /*{{{ write background*/
 	MagickWandGenesis();
@@ -311,7 +364,7 @@ int main(int argc, char* argv[]) {
 
 			Screen* screen = solution->solution[i*(y_max+1)+j];
 			MagickWand* screen_wand = NewMagickWand();
-			MagickReadImageBlob(screen_wand, screen->screenshot->blob, screen->screenshot->length);
+			MagickReadImageBlob(screen_wand, getScreenshot(screen)->blob, getScreenshot(screen)->length);
 			MagickSetImageBackgroundColor(screen_wand, letterbox_wand);
 			int w = w_scrot;
 			int h = h_scrot;
@@ -323,11 +376,11 @@ int main(int argc, char* argv[]) {
 			if(w_letterboxed > w/2) w_letterboxed = w_scrot_extended-w_scrot;
 			if(((double)monitors_data[i][j][2])/monitors_data[i][j][3] > ((double)w+w_letterboxed/2)/h) {
 				// the cropping and extending is to make rooms that are letterboxed on one side not centered (end of long rooms)
-				if(i-1 < 0 || !monitors[i-1][j] || screen->screenshot->blob != solution->solution[(i-1)*(y_max+1)+j]->screenshot->blob) {
+				if(i-1 < 0 || !monitors[i-1][j] || getScreenshot(screen)->blob != getScreenshot(solution->solution[(i-1)*(y_max+1)+j])->blob) {
 					w += w_letterboxed/2;
 					x_scrot -= w_letterboxed/2;
 				}
-				if(i+1 > x_max || !monitors[i+1][j] || screen->screenshot->blob != solution->solution[(i+1)*(y_max+1)+j]->screenshot->blob) {
+				if(i+1 > x_max || !monitors[i+1][j] || getScreenshot(screen)->blob != getScreenshot(solution->solution[(i+1)*(y_max+1)+j])->blob) {
 					w += w_letterboxed/2;
 					MagickCropImage(screen_wand, w, h, x_scrot, y_scrot);
 					if(w != w_scrot_extended) {
