@@ -12,9 +12,12 @@ endif
 ifeq ($(MAKECMDGOALS),all)
 MAKECMDGOALS=RW
 endif
-RWDEF=
+WORLD_DEF=
 ifeq ($(MAKECMDGOALS),RW)
-RWDEF=-DRW
+WORLD_DEF=-DRW
+endif
+ifeq ($(MAKECMDGOALS),ESA)
+WORLD_DEF=-DESA
 endif
 $(info $(shell $(MAKE) -C $(MAKECMDGOALS) run))
 $(info Done generating map)
@@ -33,8 +36,8 @@ ESA: main
 # won't build for different game without phony
 .PHONY: main
 main: main.c $(OBJECTS)
-	$(info $(CC) $(CFLAGS) $(RWDEF) $(MAGICKFLAGS) -lm -o $@ $@.c SCREENSHOTS $(LIB_PATH) $LIBS)
-	@$(CC) $(CFLAGS) $(RWDEF) $(MAGICKFLAGS) -lm -o $@ $@.c $(OBJECTS) $(LIB_PATH) $(LIBS)
+	$(info $(CC) $(CFLAGS) $(WORLD_DEF) $(MAGICKFLAGS) -lm -o $@ $@.c SCREENSHOTS $(LIB_PATH) $LIBS)
+	@$(CC) $(CFLAGS) $(WORLD_DEF) $(MAGICKFLAGS) -lm -o $@ $@.c $(OBJECTS) $(LIB_PATH) $(LIBS)
 
 $(OBJECTS): %.o : %.c
 	$(CC) $(CFLAGS) -c -o $@ $< $(LIB_PATH) $(LIBS)

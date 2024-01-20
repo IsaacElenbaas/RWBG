@@ -408,8 +408,14 @@ int main(int argc, char* argv[]) {
 				int h_new = (w*monitors_data[i][j][3])/monitors_data[i][j][2];
 				MagickExtentImage(screen_wand, w, h_new, 0, -(h_new-h)/2);
 			}
-			// Lanczos is good as well
-			MagickResizeImage(screen_wand, monitors_data[i][j][2], monitors_data[i][j][3], BlackmanFilter);
+			MagickResizeImage(screen_wand, monitors_data[i][j][2], monitors_data[i][j][3],
+#ifdef RW
+				// Lanczos is good as well
+				BlackmanFilter
+#elif defined(ESA)
+				PointFilter
+#endif
+			);
 			MagickCompositeImage(background_wand, screen_wand, OverCompositeOp, MagickTrue, monitors_data[i][j][0], monitors_data[i][j][1]);
 			DestroyMagickWand(screen_wand);
 		}
