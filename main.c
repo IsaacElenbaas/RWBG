@@ -1,8 +1,9 @@
+#include <fcntl.h>
 #include <math.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 #include "MagickWand/MagickWand.h"
 #include "map.h"
 #include "main.h"
@@ -324,7 +325,7 @@ int main(int argc, char* argv[]) {
 #ifdef __linux__
 		if(output_PID == 0)
 #endif
-			printf("There aren't any map sections that match this monitor configuration.\n");
+			printf("This monitor configuration has no solutions\n");
 #ifdef __linux__
 		else kill(output_PID, SIGINT);
 #endif
@@ -432,13 +433,24 @@ int main(int argc, char* argv[]) {
 		unsigned char* background_blob = MagickGetImageBlob(background_wand, &background_blob_length);
 		char* output_stdout = malloc((strlen("/proc//fd/1")+((int)log10(output_PID)+1)+1)*sizeof(char));
 		sprintf(output_stdout, "/proc/%d/fd/1", output_PID);
-		FILE* output_file = fopen(output_stdout, "a");
-		fwrite(background_blob, sizeof(char), background_blob_length, output_file);
-		fclose(output_file);
-		// with my server the reader gets EOF (I think? Doesn't seem to be a signal) too early
-		// not a great solution but I tried everything I could think of
-		sleep(1);
-		kill(output_PID, SIGINT);
+		int output_fd;
+		if(kill(output_PID, 0) != -1 && (output_fd = open(output_stdout, O_WRONLY | O_APPEND)) != -1) {
+			while(background_blob_length > 0) {
+				ssize_t res = write(output_fd, background_blob, background_blob_length);
+				if(res < 0) {
+					if(errno == EINTR) continue;
+					break;
+				}
+				background_blob = &background_blob[res];
+				// save CPU just in case, though server should prevent this now
+				if((background_blob_length -= res) != 0) sleep(0.5);
+			}
+			close(output_fd);
+			// with my server the reader gets EOF (I think? Doesn't seem to be a signal) too early
+			// not a great solution but I tried everything I could think of
+			sleep(1);
+			kill(output_PID, SIGINT);
+		}
 	}
 #endif
 	DestroyMagickWand(background_wand);

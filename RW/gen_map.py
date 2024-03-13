@@ -6,8 +6,15 @@ import os
 import re
 import sys
 
-path = "/media/data0/SteamLibrary/steamapps/common/Rain World"
-ignore = { "OE_TEMP": True }
+path = "???/steamapps/common/Rain World"
+ignore = {
+	"OE_TEMP": True,
+	# later updates added a few shelters, merged screenshots haven't been regenerated for them
+	"CL_S20": True, "CL_S21": True,
+	"HR_S10": True, "HR_S11": True, "HR_S12": True,
+	"LC_sroofs": True,
+	"VS_S20": True
+}
 
 #{{{ class Room(name, x, y, w, h, cameras)
 class Room:
@@ -174,7 +181,8 @@ for slugcat in slugcats:
 	#{{{ parse connection
 				room_a, room_b, x_a, y_a, x_b, y_b, dir_a, dir_b = data.split(",")
 				if room_a.split("_")[0] in ["OffScreenDen", "DISCONNECTED"] or \
-					 room_b.split("_")[0] in ["OffScreenDen", "DISCONNECTED"]:
+					 room_b.split("_")[0] in ["OffScreenDen", "DISCONNECTED"] or \
+					 room_a in ignore or room_b in ignore:
 					continue
 				try:
 					if room_b not in rooms[room_a].connections:
