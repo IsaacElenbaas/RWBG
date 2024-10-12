@@ -46,22 +46,43 @@ get_RWBG: function(req, res, authorized) {
 				let RWBG_sub = spawn("cat <(sh -c \"printf \\\"\\$\\$\\\\n\\\"; exec cat\")", { shell: true, timeout: 120000 });
 				RWBG_sub.stdout.once("data", function(pid) {
 					let empty = true;
-					RWBG_sub.stdout.on("data", function(chunk) {
-						if(exit_now && RWBG_sub.exitCode === null) { RWBG_sub.kill(); return; }
-						can_exit_now = true;
-						if(empty) {
-							res.writeHead(200, { "Content-Type": "image/png" });
-							empty = false;
+					let buffer = [];
+					let pause = false;
+					let end = false;
+					let data = function() {
+						while(true) {
+							if(exit_now) {
+								if(RWBG_sub.exitCode === null) RWBG_sub.kill();
+								break;
+							}
+							can_exit_now = true;
+							if(empty) {
+								res.writeHead(200, { "Content-Type": "image/png" });
+								empty = false;
+							}
+							if(pause) break;
+							let chunk = buffer.shift();
+							if(chunk === undefined) {
+								if(end) res.end();
+								break;
+							}
+							if(!res.write(chunk)) { pause = true; break; }
 						}
-						if(!res.write(chunk)) RWBG_sub.stdout.pause();
-					});
-					res.on("drain", function() { RWBG_sub.stdout.resume(); });
+					};
+					RWBG_sub.stdout.on("data", function(chunk) { if(!exit_now) { buffer.push(chunk); } data(); });
+					// can't pause input, it won't pipe buffer RWBG or something and causes problems
+					// use a buffer instead
+					// killing is fine, it will get SIGPIPEd
+					res.on("drain", function() { pause = false; data(); });
 					RWBG_sub.stdout.on("end", function() {
 						if(empty) {
 							res.writeHead(400);
 							res.end("This monitor configuration has no solutions (or there was a server issue)");
 						}
-						else res.end();
+						else {
+							if(buffer.length === 0) res.end();
+							else end = true;
+						}
 						if(!dequeued) {
 							dequeued = true;
 							dequeue_RWBG();
