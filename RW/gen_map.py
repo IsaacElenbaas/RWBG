@@ -330,29 +330,19 @@ for room in rooms:
 		print("extern Screenshot s_{}_{};".format(slugcat, room), file=map_h)
 		print("void init_s_{}_{}();".format(slugcat, room), file=map_h)
 		print("init_s_{}_{}();".format(slugcat, room), file=map_c)
-		if not os.path.isfile(path + "Merged_Screenshots_C/" + folder + "/" + room + ".c"):
-			print("Creating {}".format("Merged_Screenshots_C/" + folder + "/" + room + ".c"), file=sys.stderr)
+		if not os.path.isfile(path + "Merged_Screenshots_C/" + folder + "/" + room + ".cpp"):
+			print("Creating {}".format("Merged_Screenshots_C/" + folder + "/" + room + ".cpp"), file=sys.stderr)
 			screenshot = open(path + "Merged Screenshots/" + folder + "/" + room + ".png", "rb")
 			os.makedirs(path + "Merged_Screenshots_C/" + folder, exist_ok=True)
-			screenshot_c = open(path + "Merged_Screenshots_C/" + folder + "/" + room + ".c", "w")
+			screenshot_c = open(path + "Merged_Screenshots_C/" + folder + "/" + room + ".cpp", "w")
 			print("#include \"map.h\"", file=screenshot_c)
 			print("Screenshot s_{}_{};".format(slugcat, room), file=screenshot_c)
+			print("static char s[] = {", file=screenshot_c)
+			print("#embed \"../../{}Merged Screenshots/{}/{}.png\"".format(re.sub('/', "../", re.sub('[^/]', "", folder)), folder, room), file=screenshot_c)
+			print("};", file=screenshot_c)
 			print("void init_s_{}_{}() {{".format(slugcat, room), file=screenshot_c)
 			print("\ts_{}_{}.length = {};".format(slugcat, room, os.path.getsize(path + "Merged Screenshots/" + folder + "/" + room + ".png")), file=screenshot_c)
-			print("\ts_{s}_{r}.blob = malloc(s_{s}_{r}.length*sizeof(char));".format(s=slugcat, r=room), file=screenshot_c)
-			print("\tunsigned char* s = s_{}_{}.blob;".format(slugcat, room), file=screenshot_c)
-			i=0
-			close = False
-			while (byte := screenshot.read(1)):
-				if i%1024 == 0:
-					close = True
-					print("\tmemcpy(s+{}*sizeof(char),\"".format(i), end="", file=screenshot_c)
-				print("\\x{:x}".format(int.from_bytes(byte, 'big')), end="", file=screenshot_c)
-				if (i := i+1)%1024 == 0:
-					close = False
-					print("\", 1024*sizeof(char));", file=screenshot_c)
-			if close:
-				print("\", {}*sizeof(char));".format(i%1024), file=screenshot_c)
+			print("\ts_{}_{}.blob = (unsigned char*)&s[0];".format(slugcat, room), file=screenshot_c)
 			print("}", file=screenshot_c)
 			screenshot.close()
 			screenshot_c.close()
@@ -383,18 +373,18 @@ for screen in screens:
 		i = slugcats.index(slugcat)
 		if i == 0:
 			if slugcat in screens[screen].campaigns:
-				print("screens[{}].screenshot = &s_{}_{};".format(screens[screen].index, slugcat, re.sub('_\d*$', "", screen)), file=map_c)
+				print("screens[{}].screenshot = &s_{}_{};".format(screens[screen].index, slugcat, re.sub('_[0-9]*$', "", screen)), file=map_c)
 			else:
 				print("screens[{}].screenshot = NULL;".format(screens[screen].index), file=map_c)
 		else:
 			if slugcat in screens[screen].campaigns:
-				print("screens[{}].screenshot{} = &s_{}_{};".format(screens[screen].index, i, slugcat, re.sub('_\d*$', "", screen)), file=map_c)
+				print("screens[{}].screenshot{} = &s_{}_{};".format(screens[screen].index, i, slugcat, re.sub('_[0-9]*$', "", screen)), file=map_c)
 			else:
 				print("screens[{}].screenshot{} = screens[{}].screenshot;".format(screens[screen].index, i, screens[screen].index), file=map_c)
 	print("screens[{}].x_scrot = {};".format(screens[screen].index, screens[screen].x_scrot), file=map_c)
 	print("screens[{}].y_scrot = {};".format(screens[screen].index, screens[screen].y_scrot), file=map_c)
 	print("screens[{}].connections_length = {};".format(screens[screen].index, len(screens[screen].connections)), file=map_c)
-	print("screens[{s}].connections = malloc(screens[{s}].connections_length*sizeof(Connection));".format(s=screens[screen].index), file=map_c)
+	print("screens[{s}].connections = (Connection*)malloc(screens[{s}].connections_length*sizeof(Connection));".format(s=screens[screen].index), file=map_c)
 	#}}}
 
 	#{{{ create Connections

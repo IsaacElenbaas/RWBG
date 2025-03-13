@@ -2,14 +2,16 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include "MagickWand/MagickWand.h"
 #include "map.h"
 #include "main.h"
 #ifdef __linux__
+extern "C" {
 #	include <signal.h>
-#	include <unistd.h>
+}
 #endif
 
 /*{{{ structs and variables*/
@@ -97,7 +99,7 @@ bool tryMove(int x_new, int y_new, int direction) {
 
 			backtracking = false;
 			if(backtracking_to_complete == 0) {
-				current->next = malloc(sizeof(Node));
+				current->next = (Node*)malloc(sizeof(Node));
 				current->next->prev = current;
 				current->next->screen = current->screen->connections[i].screen;
 				current = current->next;
@@ -140,11 +142,11 @@ int main(int argc, char* argv[]) {
 			line_length = getline(&line, &line_size, stdin);
 			if(line_length <= 0) return 0;
 			if(fork() == 0) {
-				argv = malloc((2+9*9)*sizeof(char*));
-				argv[1] = malloc((3+1)*sizeof(char));
-				argv[2] = malloc((3+1)*sizeof(char));
+				argv = (char**)malloc((2+9*9)*sizeof(char*));
+				argv[1] = (char*)malloc((3+1)*sizeof(char));
+				argv[2] = (char*)malloc((3+1)*sizeof(char));
 				for(int i = 3; i < 2+9*9; i++) {
-					argv[i] = malloc((5+3+2*5+2*4+1)*sizeof(char));
+					argv[i] = (char*)malloc((5+3+2*5+2*4+1)*sizeof(char));
 				}
 				sscanf(line, "%d %s %s", &output_PID, argv[1], argv[2]);
 				argc = 3;
@@ -164,13 +166,13 @@ int main(int argc, char* argv[]) {
 	x_max--; y_max--;
 	sscanf(argv[2], "%d,%d", &x_origin, &y_origin);
 	x = x_origin; y = y_origin;
-	monitors = malloc((x_max+1)*sizeof(bool*));
-	monitors_data = malloc((x_max+1)*sizeof(bool*));
-	visited = malloc((x_max+1)*sizeof(bool*));
+	monitors = (bool**)malloc((x_max+1)*sizeof(bool*));
+	monitors_data = (int***)malloc((x_max+1)*sizeof(bool*));
+	visited = (bool**)malloc((x_max+1)*sizeof(bool*));
 	for(int i = 0; i < x_max+1; i++) {
-		monitors[i] = malloc((y_max+1)*sizeof(bool));
-		monitors_data[i] = malloc((y_max+1)*sizeof(bool*));
-		visited[i] = malloc((y_max+1)*sizeof(bool));
+		monitors[i] = (bool*)malloc((y_max+1)*sizeof(bool));
+		monitors_data[i] = (int**)malloc((y_max+1)*sizeof(bool*));
+		visited[i] = (bool*)malloc((y_max+1)*sizeof(bool));
 		for(int j = 0; j < y_max+1; j++) {
 			monitors[i][j] = 0;
 			visited[i][j] = 0;
@@ -180,7 +182,7 @@ int main(int argc, char* argv[]) {
 		int x_monitor, y_monitor;
 		sscanf(argv[i], "%d,%d@%*d,%*d:%*dx%*d", &x_monitor, &y_monitor);
 		monitors[x_monitor][y_monitor] = true;
-		monitors_data[x_monitor][y_monitor] = malloc(4*sizeof(int));
+		monitors_data[x_monitor][y_monitor] = (int*)malloc(4*sizeof(int));
 		sscanf(argv[i], "%*d,%*d@%d,%d:%dx%d",
 			&monitors_data[x_monitor][y_monitor][0],
 			&monitors_data[x_monitor][y_monitor][1],
@@ -229,12 +231,12 @@ int main(int argc, char* argv[]) {
 					if(current->prev == NULL) {
 						// if there's only one monitor anything is a solution
 						if(x_max == 0 && y_max == 0) {
-							solution = malloc(sizeof(Solution));
+							solution = (Solution*)malloc(sizeof(Solution));
 							solution->next = NULL;
 #ifdef RW
 							solution->campaign = campaign;
 #endif
-							solution->solution = malloc(sizeof(Screen*));
+							solution->solution = (Screen**)malloc(sizeof(Screen*));
 							solution->solution[0] = current->screen;
 						}
 						// this isn't necessary because it happens in tryMove but _to_complete is
@@ -253,7 +255,7 @@ int main(int argc, char* argv[]) {
 					if(is_solution) {
 
 		/*{{{ store solution*/
-						Solution* solution_t = malloc(sizeof(Solution));
+						Solution* solution_t = (Solution*)malloc(sizeof(Solution));
 						solution_t->next = NULL;
 #ifdef RW
 						solution_t->campaign = campaign;
@@ -264,7 +266,7 @@ int main(int argc, char* argv[]) {
 							for(i = solution; i->next != NULL; i = solution->next);
 							i->next = solution_t;
 						}
-						solution_t->solution = malloc((x_max+1)*(y_max+1)*sizeof(Screen*));
+						solution_t->solution = (Screen**)malloc((x_max+1)*(y_max+1)*sizeof(Screen*));
 						int x_t = x; int y_t = y;
 						for(Node* current_t = current; current_t != NULL; current_t = current_t->prev) {
 							solution_t->solution[x_t*(y_max+1)+y_t] = current_t->screen;
@@ -283,7 +285,7 @@ int main(int argc, char* argv[]) {
 					last = current->screen;
 					if(backtracking_to_complete == 0) {
 						backtracking_to_complete = 1;
-						current->next = malloc(sizeof(Node));
+						current->next = (Node*)malloc(sizeof(Node));
 						current->next->prev = current;
 						current->next->screen = current->prev->screen;
 						current = current->next;
@@ -431,7 +433,7 @@ int main(int argc, char* argv[]) {
 		MagickSetImageFormat(background_wand, "PNG");
 		size_t background_blob_length;
 		unsigned char* background_blob = MagickGetImageBlob(background_wand, &background_blob_length);
-		char* output_stdout = malloc((strlen("/proc//fd/1")+((int)log10(output_PID)+1)+1)*sizeof(char));
+		char* output_stdout = (char*)malloc((strlen("/proc//fd/1")+((int)log10(output_PID)+1)+1)*sizeof(char));
 		sprintf(output_stdout, "/proc/%d/fd/1", output_PID);
 		int output_fd;
 		if(kill(output_PID, 0) != -1 && (output_fd = open(output_stdout, O_WRONLY | O_APPEND)) != -1) {
@@ -443,7 +445,7 @@ int main(int argc, char* argv[]) {
 				}
 				background_blob = &background_blob[res];
 				// save CPU just in case, though server should prevent this now
-				if((background_blob_length -= res) != 0) sleep(0.5);
+				//if((background_blob_length -= res) != 0) sleep(0.5);
 			}
 			close(output_fd);
 			// with my server the reader gets EOF (I think? Doesn't seem to be a signal) too early

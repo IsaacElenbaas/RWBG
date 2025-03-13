@@ -320,26 +320,22 @@ int main() {
 			char out[strlen("Merged Screenshots/.png")+((int)log10(region->index|1)+1)+1];
 			sprintf(out, "Merged Screenshots/%d.png", region->index);
 			MagickWriteImage(region->wand, out);
-			sprintf(out, "Merged_Screenshots_C/%d.c", region->index);
+			FILE* region_image = fopen(out, "r");
+			fseek(region_image, 0L, SEEK_END);
+			size_t region_image_length = ftell(region_image);
+			fclose(region_image);
+			sprintf(out, "Merged_Screenshots_C/%d.cpp", region->index);
 			FILE* scrotc = fopen(out, "w");
-			MagickSetImageFormat(region->wand, "PNG");
-			size_t region_image_length;
-			unsigned char* region_image = MagickGetImageBlob(region->wand, &region_image_length);
 			fprintf(scrotc, "#include \"map.h\"\n");
 			fprintf(scrotc, "Screenshot r_%d;\n", region->index);
+			fprintf(scrotc, "static char s[] = {\n");
+			fprintf(scrotc, "#embed \"../Merged Screenshots/%d.png\"\n", region->index);
+			fprintf(scrotc, "};\n");
 			fprintf(scrotc, "void init_r_%d() {;\n", region->index);
 			fprintf(scrotc, "\tr_%d.length = %zu;\n", region->index, region_image_length);
-			fprintf(scrotc, "\tr_%d.blob = malloc(r_%d.length*sizeof(char));\n", region->index, region->index);
-			fprintf(scrotc, "\tunsigned char* s = r_%d.blob;\n", region->index);
-			for(size_t i = 0; i < region_image_length; i += 1024) {
-				fprintf(scrotc, "\tmemcpy(s+%zu*sizeof(char), \"", i);
-				for(int j = 0; j < 1024 && i+j < region_image_length; j++) {
-					fprintf(scrotc, "\\x%x", region_image[i+j]);
-				}
-				fprintf(scrotc, "\", %zu*sizeof(char));\n", (i+1024 < region_image_length) ? (size_t)1024 : region_image_length%1024);
-			}
+			// can't make unsigned, dumb #embed error due to in-range "negatives"
+			fprintf(scrotc, "\tr_%d.blob = (unsigned char*)&s[0];\n", region->index);
 			fprintf(scrotc, "}\n");
-			free(region_image);
 			fclose(scrotc);
 		}
 		DestroyMagickWand(region->wand);
@@ -381,7 +377,7 @@ int main() {
 				fprintf(mapc, "screens[%d].y_scrot = %d;\n", screens[x][y]->index, (y-screens[x][y]->region->y)*h_tile);
 				short unsigned int connections = screens[x][y]->connections;
 				fprintf(mapc, "screens[%d].connections_length = %d;\n", screens[x][y]->index, (connections & 1)+((connections & (1 << 1)) >> 1)+((connections & (1 << 2)) >> 2)+((connections & (1 << 3)) >> 3));
-				fprintf(mapc, "screens[%d].connections = malloc(screens[%d].connections_length*sizeof(Connection));\n", screens[x][y]->index, screens[x][y]->index);
+				fprintf(mapc, "screens[%d].connections = (Connection*)malloc(screens[%d].connections_length*sizeof(Connection));\n", screens[x][y]->index, screens[x][y]->index);
 				int i = 0;
 				if((connections & 1)        != 0 && x+1  < w && screens[x+1][y] != NULL) {
 					fprintf(mapc, "screens[%d].connections[%d].screen = &screens[%d];\n", screens[x][y]->index, i, screens[x+1][y]->index);
